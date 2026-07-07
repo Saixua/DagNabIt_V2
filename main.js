@@ -334,32 +334,38 @@ class Game {
             this.aPeg = Math.floor(Math.random() * CONFIG.ANGLE.pegs);
         } else {
             // Smart AI Simulator
-            let bestThrow = { f: 0, a: 0, points: -1 };
+            let allThrows = [];
             let mediumThrows = [];
 
             for (let f = 0; f < CONFIG.FORCE.pegs; f++) {
                 for (let a = 0; a < CONFIG.ANGLE.pegs; a++) {
                     const points = this.simulateThrow(f, a);
-                    if (points > bestThrow.points) {
-                        bestThrow = { f, a, points };
-                    }
+                    allThrows.push({ f, a, points });
                     if (points >= 5 && points <= 25) {
                         mediumThrows.push({ f, a, points });
                     }
                 }
             }
+            
+            // Sort throws from highest points to lowest
+            allThrows.sort((t1, t2) => t2.points - t1.points);
 
             if (this.difficulty === 'hard') {
-                this.fPeg = bestThrow.f;
-                this.aPeg = bestThrow.a;
+                // Pick randomly from the top 5 best possible throws
+                // This makes it extremely tough, but adds a tiny bit of "human error"
+                const topPicks = allThrows.slice(0, 5);
+                const r = topPicks[Math.floor(Math.random() * topPicks.length)];
+                this.fPeg = r.f;
+                this.aPeg = r.a;
             } else if (this.difficulty === 'medium') {
                 if (mediumThrows.length > 0) {
                     const r = mediumThrows[Math.floor(Math.random() * mediumThrows.length)];
                     this.fPeg = r.f;
                     this.aPeg = r.a;
                 } else {
-                    this.fPeg = bestThrow.f;
-                    this.aPeg = bestThrow.a;
+                    const r = allThrows[0];
+                    this.fPeg = r.f;
+                    this.aPeg = r.a;
                 }
             }
         }

@@ -60,8 +60,8 @@ class Game {
         this.thiefWins = 0;
 
         
-        this.fPeg = 7;
-        this.aPeg = 7;
+        this.fPeg = 14;
+        this.aPeg = 14;
         this.spawnX = this.getSpawnX();
         
         this.anim = null;
@@ -91,29 +91,29 @@ class Game {
     }
 
     bindEvents() {
-        this.canvas.addEventListener('mousemove', e => {
+        const handleMove = (clientX, clientY, isDragging) => {
             if (this.state !== 'PLAYING' || this.player !== 'thief') return;
             const r = this.canvas.getBoundingClientRect();
             const scaleX = this.canvas.width / r.width;
             const scaleY = this.canvas.height / r.height;
-            const mx = (e.clientX - r.left) * scaleX;
-            const my = (e.clientY - r.top) * scaleY;
+            const mx = (clientX - r.left) * scaleX;
+            const my = (clientY - r.top) * scaleY;
             
-            if (e.buttons > 0) {
+            if (isDragging) {
                 // Drag Force
-                if (Math.abs(my - CONFIG.FORCE.y) < 50 && mx > CONFIG.FORCE.x - 20 && mx < CONFIG.FORCE.x + CONFIG.FORCE.width + 20) {
+                if (Math.abs(my - CONFIG.FORCE.y) < 150 && mx > CONFIG.FORCE.x - 100 && mx < CONFIG.FORCE.x + CONFIG.FORCE.width + 100) {
                     const ratio = Math.max(0, Math.min(1, (mx - CONFIG.FORCE.x) / CONFIG.FORCE.width));
                     this.fPeg = Math.round(ratio * (CONFIG.FORCE.pegs - 1));
                 }
                 // Drag Angle
                 if (CONFIG.ANGLE.isLinear) {
-                    if (Math.abs(my - CONFIG.ANGLE.y) < 50 && mx > CONFIG.ANGLE.x - 20 && mx < CONFIG.ANGLE.x + CONFIG.ANGLE.width + 20) {
+                    if (Math.abs(my - CONFIG.ANGLE.y) < 150 && mx > CONFIG.ANGLE.x - 100 && mx < CONFIG.ANGLE.x + CONFIG.ANGLE.width + 100) {
                         const ratio = Math.max(0, Math.min(1, (mx - CONFIG.ANGLE.x) / CONFIG.ANGLE.width));
                         this.aPeg = Math.round(ratio * (CONFIG.ANGLE.pegs - 1));
                     }
                 } else {
                     const dx = mx - CONFIG.ANGLE.cx; const dy = my - CONFIG.ANGLE.cy;
-                    if (Math.sqrt(dx*dx + dy*dy) < Math.max(CONFIG.ANGLE.radiusX, CONFIG.ANGLE.radiusY) + 50) {
+                    if (Math.sqrt(dx*dx + dy*dy) < Math.max(CONFIG.ANGLE.radiusX, CONFIG.ANGLE.radiusY) + 150) {
                         let angle = Math.atan2(dy, dx);
                         if (angle < 0) angle += Math.PI * 2;
                         if (angle >= Math.PI && angle <= Math.PI * 2) {
@@ -123,9 +123,9 @@ class Game {
                     }
                 }
             }
-        });
-        
-        this.canvas.addEventListener('mousedown', e => {
+        };
+
+        const handleDown = (clientX, clientY) => {
             if (typeof AudioSys !== 'undefined') {
                 AudioSys.init(); // Init audio on first interaction
                 AudioSys.startMusic('tavern.mp3');
@@ -134,8 +134,8 @@ class Game {
             const r = this.canvas.getBoundingClientRect();
             const scaleX = this.canvas.width / r.width;
             const scaleY = this.canvas.height / r.height;
-            const mx = (e.clientX - r.left) * scaleX;
-            const my = (e.clientY - r.top) * scaleY;
+            const mx = (clientX - r.left) * scaleX;
+            const my = (clientY - r.top) * scaleY;
 
             if (this.state === 'MENU') {
                 const btnW = 300;
@@ -192,18 +192,10 @@ class Game {
                 return;
             }
             
-            // Interactive Blackboard: click to manually add tallies!
-            const bb = CONFIG.BLACKBOARD;
-            if (mx > bb.x && mx < bb.x + bb.w && my > bb.y && my < bb.y + bb.h) {
-                if (my < bb.y + bb.h / 2) this.chiefWins++;
-                else this.thiefWins++;
-                return;
-            }
-
             if (this.state !== 'PLAYING' || this.player !== 'thief') return;
             
             // Click Force
-            if (Math.abs(my - CONFIG.FORCE.y) < 50 && mx > CONFIG.FORCE.x - 20 && mx < CONFIG.FORCE.x + CONFIG.FORCE.width + 20) {
+            if (Math.abs(my - CONFIG.FORCE.y) < 150 && mx > CONFIG.FORCE.x - 100 && mx < CONFIG.FORCE.x + CONFIG.FORCE.width + 100) {
                 const ratio = Math.max(0, Math.min(1, (mx - CONFIG.FORCE.x) / CONFIG.FORCE.width));
                 this.fPeg = Math.round(ratio * (CONFIG.FORCE.pegs - 1));
                 return;
@@ -211,14 +203,14 @@ class Game {
             
             // Click Angle
             if (CONFIG.ANGLE.isLinear) {
-                if (Math.abs(my - CONFIG.ANGLE.y) < 50 && mx > CONFIG.ANGLE.x - 20 && mx < CONFIG.ANGLE.x + CONFIG.ANGLE.width + 20) {
+                if (Math.abs(my - CONFIG.ANGLE.y) < 150 && mx > CONFIG.ANGLE.x - 100 && mx < CONFIG.ANGLE.x + CONFIG.ANGLE.width + 100) {
                     const ratio = Math.max(0, Math.min(1, (mx - CONFIG.ANGLE.x) / CONFIG.ANGLE.width));
                     this.aPeg = Math.round(ratio * (CONFIG.ANGLE.pegs - 1));
                     return;
                 }
             } else {
                 const dx = mx - CONFIG.ANGLE.cx; const dy = my - CONFIG.ANGLE.cy;
-                if (Math.sqrt(dx*dx + dy*dy) < Math.max(CONFIG.ANGLE.radiusX, CONFIG.ANGLE.radiusY) + 50) {
+                if (Math.sqrt(dx*dx + dy*dy) < Math.max(CONFIG.ANGLE.radiusX, CONFIG.ANGLE.radiusY) + 150) {
                     let angle = Math.atan2(dy, dx);
                     if (angle < 0) angle += Math.PI * 2;
                     if (angle >= Math.PI && angle <= Math.PI * 2) {
@@ -231,7 +223,19 @@ class Game {
 
             const bf = CONFIG.BOARD_FACE;
             if (Math.hypot(mx - bf.cx, my - bf.cy) < 400) this.throwDagger();
-        });
+        };
+
+        this.canvas.addEventListener('mousemove', e => handleMove(e.clientX, e.clientY, e.buttons > 0));
+        this.canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY, true);
+        }, {passive: false});
+
+        this.canvas.addEventListener('mousedown', e => handleDown(e.clientX, e.clientY));
+        this.canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            if (e.touches.length > 0) handleDown(e.touches[0].clientX, e.touches[0].clientY);
+        }, {passive: false});
     }
 
     throwDagger() {

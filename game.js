@@ -1,8 +1,8 @@
 const CONFIG_LANDSCAPE = {
     BOARD: { w: 1920, h: 1080 },
     BOARD_FACE: { cx: 960, cy: 440, rings: [370, 268, 182, 107], points: [1, 2, 3, 4], scaleX: 0.85, scaleY: 0.85, bbW: 1000, bbH: 800 },
-    FORCE: { x: 80, y: 770, width: 300, pegs: 15, spawnX: [660, 1260], baseline: 880, maxDist: 800 },
-    ANGLE: { isLinear: false, cx: 1690, cy: 800, radiusX: 140, radiusY: 70, pegs: 15 },
+    FORCE: { x: 80, y: 770, width: 300, pegs: 29, spawnX: [450, 1450], baseline: 880, maxDist: 800 },
+    ANGLE: { isLinear: false, cx: 1690, cy: 800, radiusX: 140, radiusY: 70, pegs: 29 },
     SCORE: { chiefY: 950, thiefY: 1010, startX: 340, spacing: 28, textX: 1760, nameTextX: 160, nameFont: 40, numFont: 64 },
     BLACKBOARD: { x: 40, y: 40, w: 420, h: 140, font: 36, textX: 20, chiefTallyY: 60, thiefTallyY: 115, tallyX: 170 },
     UI: {
@@ -22,8 +22,8 @@ const CONFIG_LANDSCAPE = {
 const CONFIG_PORTRAIT = {
     BOARD: { w: 1080, h: 1920 },
     BOARD_FACE: { cx: 540, cy: 785, rings: [370, 268, 182, 107], points: [1, 2, 3, 4], scaleX: 1.20, scaleY: 1.20, bbW: 1050, bbH: 1050 },
-    FORCE: { x: 180, y: 1450, width: 700, pegs: 15, spawnX: [180, 880], baseline: 1360, maxDist: 1150 },
-    ANGLE: { isLinear: true, x: 180, y: 1600, width: 700, pegs: 15 },
+    FORCE: { x: 180, y: 1450, width: 700, pegs: 29, spawnX: [100, 980], baseline: 1360, maxDist: 1150 },
+    ANGLE: { isLinear: true, x: 180, y: 1600, width: 700, pegs: 29 },
     SCORE: { chiefY: 1790, thiefY: 1870, startX: 390, spacing: 10, textX: 965, nameTextX: 190, nameFont: 52, numFont: 72 },
     BLACKBOARD: { x: 40, y: 30, w: 1000, h: 180, font: 56, textX: 40, chiefTallyY: 75, thiefTallyY: 150, tallyX: 320 },
     UI: {

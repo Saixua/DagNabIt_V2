@@ -263,6 +263,9 @@ class Game {
             dy = Math.sin(theta) * maxR;
         }
 
+        const finalX = bf.cx + dx * scaleX;
+        const finalY = bf.cy + dy * scaleY;
+
         let hitType = 'hit';
         let points = 0;
         
@@ -299,11 +302,28 @@ class Game {
             },
             draw: (ctx) => {
                 const p = t / 20;
-                let sy = CONFIG.FORCE.baseline;
-                if (p < 0.3) sy += p/0.3 * 50; else sy -= (p-0.3)/0.7 * 400;
+                let animX = this.spawnX;
+                let animY = CONFIG.FORCE.baseline;
+                let scale = 1;
+
+                if (p < 0.2) {
+                    const wp = p / 0.2;
+                    animX -= Math.cos(aRad) * 40 * wp;
+                    animY -= Math.sin(aRad) * 40 * wp;
+                } else {
+                    const fp = (p - 0.2) / 0.8;
+                    const startX = this.spawnX - Math.cos(aRad) * 40;
+                    const startY = CONFIG.FORCE.baseline - Math.sin(aRad) * 40;
+                    const ease = fp * (2 - fp); // easeOutQuad
+                    animX = startX + (finalX - startX) * ease;
+                    animY = startY + (finalY - startY) * ease;
+                    scale = 1 - (ease * 0.25); // slight shrink for depth
+                }
+
                 ctx.save();
-                ctx.translate(this.spawnX, sy);
+                ctx.translate(animX, animY);
                 ctx.rotate(aRad + Math.PI/2);
+                ctx.scale(scale, scale);
                 ctx.fillStyle = this.player === 'chief' ? '#ccc' : '#9bbbd4'; 
                 ctx.beginPath(); ctx.moveTo(-4,0); ctx.lineTo(4,0); ctx.lineTo(4,-30); ctx.lineTo(0,-45); ctx.lineTo(-4,-30); ctx.fill();
                 ctx.fillStyle = '#d4af37'; ctx.fillRect(-12,-3,24,8);

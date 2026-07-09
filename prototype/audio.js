@@ -24,7 +24,7 @@ init() {
             };
             
             window.addEventListener('click', unlockAudio);
-            window.addEventListener('touchstart', unlockAudio);
+            window.addEventListener('touchstart', unlockAudio, { passive: true }); // 👈 Added passive: true
         }
     },
 

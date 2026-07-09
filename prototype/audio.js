@@ -9,14 +9,20 @@ init() {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         }
 
-        // Handles browser autoplay blocks by waiting for a physical user tap/click
         if (this.ctx.state === 'suspended') {
             const unlockAudio = () => {
                 if (this.soundState !== 2) {
                     this.ctx.resume().then(() => {
                         console.log("Audio successfully unlocked!");
-                        // If you have a function to start background music, call it here:
-                        // this.playMusic(); 
+                        
+                        // 🛠️ ADD THIS LINE TO FORCE START YOUR MUSIC LOOPER:
+                        if (typeof this.playMusic === 'function') {
+                            this.playMusic();
+                        } else if (typeof this.startTrack === 'function') {
+                            this.startTrack();
+                        } else if (typeof this.nextTrack === 'function') {
+                            this.nextTrack();
+                        }
                     });
                 }
                 window.removeEventListener('click', unlockAudio);

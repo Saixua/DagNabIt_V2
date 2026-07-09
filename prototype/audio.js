@@ -15,14 +15,8 @@ init() {
                     this.ctx.resume().then(() => {
                         console.log("Audio successfully unlocked!");
                         
-                        // 🛠️ ADD THIS LINE TO FORCE START YOUR MUSIC LOOPER:
-                        if (typeof this.playMusic === 'function') {
-                            this.playMusic();
-                        } else if (typeof this.startTrack === 'function') {
-                            this.startTrack();
-                        } else if (typeof this.nextTrack === 'function') {
-                            this.nextTrack();
-                        }
+                        // 🛠️ FORCE START THE BACKGROUND MUSIC NOW THAT THE USER CLICKED
+                        this.startMusic();
                     });
                 }
                 window.removeEventListener('click', unlockAudio);

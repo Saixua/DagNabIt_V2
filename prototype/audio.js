@@ -15,16 +15,21 @@ init() {
                     this.ctx.resume().then(() => {
                         console.log("Audio successfully unlocked!");
                         
-                        // 🛠️ FORCE START THE BACKGROUND MUSIC NOW THAT THE USER CLICKED
-                        this.startMusic();
+                        // 🛠️ FORCE TRIGGER PLAYBACK AGAIN IF IT WAS BLOCKED STARTUP
+                        if (this.bgmLooper) {
+                            console.log("Re-triggering looper play...");
+                            this.bgmLooper.play();
+                        } else {
+                            this.startMusic();
+                        }
                     });
                 }
                 window.removeEventListener('click', unlockAudio);
-                window.removeEventListener('touchstart', unlockAudio);
+                window.removeEventListener('touchstart', unlockAudio, { passive: true });
             };
             
             window.addEventListener('click', unlockAudio);
-            window.addEventListener('touchstart', unlockAudio, { passive: true }); // 👈 Added passive: true
+            window.addEventListener('touchstart', unlockAudio, { passive: true });
         }
     },
 

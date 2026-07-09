@@ -170,14 +170,27 @@ class CrossfadeLooper {
     }
 
     play() {
+        // Safe helper to update tracking flags if a play promise fails
+        const handlePlayError = (e) => {
+            console.log('Looper play blocked, resetting state flags:', e);
+            this.hasStarted = false;
+            this.isPlaying = false;
+        };
+
         if (!this.hasStarted) {
             this.activeAudio.volume = this.volume;
-            this.activeAudio.play().catch(e => console.log('Looper play blocked:', e));
             this.hasStarted = true;
             this.isPlaying = true;
+            this.activeAudio.play().catch(handlePlayError);
         } else if (!this.isPlaying) {
-            this.activeAudio.play().catch(e => console.log('Looper play blocked:', e));
             this.isPlaying = true;
+            this.activeAudio.play().catch(handlePlayError);
+        } else {
+            // 🛠️ CRITICAL SAFETY LAYER: 
+            // If the code thinks it is playing but the HTML tag is actually paused, force play it!
+            if (this.activeAudio.paused) {
+                this.activeAudio.play().catch(handlePlayError);
+            }
         }
     }
 

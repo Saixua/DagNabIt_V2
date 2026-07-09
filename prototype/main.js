@@ -1,5 +1,10 @@
 window.GRAPHICS_MODE = 'pixel';
 
+if (typeof window.HAS_PLAYED_BEFORE === 'undefined') window.HAS_PLAYED_BEFORE = false;
+if (typeof window.SELECTED_DIFFICULTY === 'undefined') window.SELECTED_DIFFICULTY = 'medium';
+if (typeof window.LAST_CHIEF_SCORE === 'undefined') window.LAST_CHIEF_SCORE = 0;
+if (typeof window.LAST_THIEF_SCORE === 'undefined') window.LAST_THIEF_SCORE = 0;
+
 class Bead {
     constructor(owner, index) {
         this.owner = owner;
@@ -46,15 +51,23 @@ class Game {
         this.ctx = canvas.getContext('2d');
         this.renderer = new Renderer(canvas, this.ctx);
         
-        this.state = 'MENU';
-        this.difficulty = 'medium';
-        this.player = 'thief'; // Human player starts first? Wait, resetGame sets chief.
+        // Check if the player has already played a round
+        if (window.HAS_PLAYED_BEFORE) {
+            this.state = 'PLAYING'; // Skip the menu
+            this.difficulty = window.SELECTED_DIFFICULTY; // Keep the chosen difficulty
+        } else {
+            this.state = 'MENU'; // Show menu only the very first time
+            this.difficulty = 'medium';
+        }
+
+        this.player = 'thief'; 
         this.turn = 1;
         this.throwsThisRound = 0;
         
         this.daggers = [];
         this.beads = [];
-        this.chiefScore = 0;
+        
+        this.chiefScore = 0; 
         this.thiefScore = 0;
         this.chiefWins = 0;
         this.thiefWins = 0;
@@ -500,6 +513,10 @@ class Game {
     }
 
     resetGame() {
+
+        window.LAST_CHIEF_SCORE = this.chiefScore;
+        window.LAST_THIEF_SCORE = this.thiefScore;
+        
         this.chiefScore = 0;
         this.thiefScore = 0;
         this.daggers = [];

@@ -1,16 +1,30 @@
 const AudioSys = {
     ctx: null,
-    ctx: null,
     soundState: 0, // 0 = All On, 1 = Music Off, 2 = All Off
     currentTrackIdx: 0,
     tracks: ['The Tavern of the Lost .mp3', 'tavern.mp3'],
 
-    init() {
+init() {
         if (!this.ctx) {
             this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         }
-        if (this.ctx.state === 'suspended' && this.soundState !== 2) {
-            this.ctx.resume();
+
+        // Handles browser autoplay blocks by waiting for a physical user tap/click
+        if (this.ctx.state === 'suspended') {
+            const unlockAudio = () => {
+                if (this.soundState !== 2) {
+                    this.ctx.resume().then(() => {
+                        console.log("Audio successfully unlocked!");
+                        // If you have a function to start background music, call it here:
+                        // this.playMusic(); 
+                    });
+                }
+                window.removeEventListener('click', unlockAudio);
+                window.removeEventListener('touchstart', unlockAudio);
+            };
+            
+            window.addEventListener('click', unlockAudio);
+            window.addEventListener('touchstart', unlockAudio);
         }
     },
 

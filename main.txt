@@ -208,11 +208,9 @@ class Game {
             }
 
             const isPortrait = CONFIG === CONFIG_PORTRAIT;
-           
-            const btn3 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 140, w: 200, h: 50} : {x: CONFIG.BOARD.w - 570, y: 20, w: 150, h: 50}; // Mode
-           
+            const btn3 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50} : {x: CONFIG.BOARD.w - 400, y: 20, w: 150, h: 50}; // Mode
+            const btn2 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50} : {x: CONFIG.BOARD.w - 400, y: 20, w: 150, h: 50}; // Menu
             const btn1 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 80, w: 200, h: 50} : {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50}; // Settings
-             const btn2 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50} : {x: CONFIG.BOARD.w - 400, y: 20, w: 150, h: 50}; // Menu
 
             if (mx > btn1.x && mx < btn1.x + btn1.w && my > btn1.y && my < btn1.y + btn1.h) {
                 this.state = 'SETTINGS';

@@ -2,8 +2,10 @@ window.GRAPHICS_MODE = 'pixel';
 
 if (typeof window.HAS_PLAYED_BEFORE === 'undefined') window.HAS_PLAYED_BEFORE = false;
 if (typeof window.SELECTED_DIFFICULTY === 'undefined') window.SELECTED_DIFFICULTY = 'medium';
-if (typeof window.LAST_CHIEF_SCORE === 'undefined') window.LAST_CHIEF_SCORE = 0;
-if (typeof window.LAST_THIEF_SCORE === 'undefined') window.LAST_THIEF_SCORE = 0;
+
+ // 🧠 FIX: Push the saved wins back into the global window variables so the blackboard draws them!
+window.LAST_CHIEF_SCORE = this.chiefWins;
+window.LAST_THIEF_SCORE = this.thiefWins;
 
 class Bead {
     constructor(owner, index) {
@@ -76,10 +78,14 @@ class Game {
         this.fPeg = 14;
         this.aPeg = 14;
         this.spawnX = this.getSpawnX();
+
+
         
         this.anim = null;
         this.activeSlider = null; // Track which slider is actively grabbed
         
+        this.loadSavedData(); 
+
         window.addEventListener('resize', this.handleResize.bind(this));
         this.handleResize(); // Initial call
         
@@ -102,6 +108,58 @@ class Game {
     
     getSpawnX() {
         return CONFIG.FORCE.spawnX[0] + Math.random() * (CONFIG.FORCE.spawnX[1] - CONFIG.FORCE.spawnX[0]);
+    }
+
+    loadSavedData() {
+        this.chiefScore = parseInt(localStorage.getItem('game_chiefScore')) || 0;
+        this.thiefScore = parseInt(localStorage.getItem('game_thiefScore')) || 0;
+
+          // 🆕 Load Blackboard Chalk Wins (Default to 0 if none exist)
+        this.chiefWins = parseInt(localStorage.getItem('game_chiefWins')) || 0;
+        this.thiefWins = parseInt(localStorage.getItem('game_thiefWins')) || 0;
+
+        if (typeof AudioSys !== 'undefined') {
+            const savedSoundState = localStorage.getItem('game_soundState');
+            const savedTrackIdx = localStorage.getItem('game_trackIdx');
+
+            if (savedSoundState !== null) {
+                AudioSys.soundState = parseInt(savedSoundState, 10);
+            }
+            if (savedTrackIdx !== null) {
+                AudioSys.currentTrackIdx = parseInt(savedTrackIdx, 10);
+            }
+        }
+    }
+
+    saveGameData() {
+        localStorage.setItem('game_chiefScore', this.chiefScore);
+        localStorage.setItem('game_thiefScore', this.thiefScore);
+
+        // 🆕 2. Save the blackboard chalk wins (The tally marks!)
+        localStorage.setItem('game_chiefWins', this.chiefWins);
+        localStorage.setItem('game_thiefWins', this.thiefWins);
+
+        if (typeof AudioSys !== 'undefined') {
+            localStorage.setItem('game_soundState', AudioSys.soundState);
+            localStorage.setItem('game_trackIdx', AudioSys.currentTrackIdx);
+        }
+    }
+
+    resetAllData() {
+        localStorage.removeItem('game_chiefScore');
+        localStorage.removeItem('game_thiefScore');
+        localStorage.removeItem('game_soundState');
+        localStorage.removeItem('game_trackIdx');
+
+        this.chiefScore = 0;
+        this.thiefScore = 0;
+
+        if (typeof AudioSys !== 'undefined') {
+            AudioSys.soundState = 0;      
+            AudioSys.currentTrackIdx = 0;  
+        }
+
+        alert('Scores and settings have been completely reset!');
     }
 
     bindEvents() {
@@ -186,39 +244,54 @@ class Game {
                 return;
             }
 
-            if (this.state === 'SETTINGS') {
-                const btnW = 400;
-                const btnH = 80;
-                const gap = 40;
-                const startY = CONFIG.BOARD.h/2 - 150;
-                
-                const by1 = startY + 0 * (btnH + gap);
-                const by2 = startY + 1 * (btnH + gap);
-                const by3 = startY + 2 * (btnH + gap);
-                const by4 = startY + 3 * (btnH + gap);
+           if (this.state === 'SETTINGS') {
+    const btnW = 400;
+    const btnH = 70;      // Shrunk slightly from 80 to fit 5 buttons safely
+    const gap = 25;       // Tightened from 40 for optimal phone/PC vertical spacing
+    const startY = CONFIG.BOARD.h / 2 - 210; // Shifted up so the 5th button doesn't clip off-screen
+    
+    const by1 = startY + 0 * (btnH + gap);
+    const by2 = startY + 1 * (btnH + gap);
+    const by3 = startY + 2 * (btnH + gap);
+    const by4 = startY + 3 * (btnH + gap);
+    const by5 = startY + 4 * (btnH + gap); // 🆕 New 5th button position calculation
 
-                if (mx > CONFIG.BOARD.w/2 - btnW/2 && mx < CONFIG.BOARD.w/2 + btnW/2) {
-                    if (my > by1 && my < by1 + btnH) {
-                        if (typeof AudioSys !== 'undefined') AudioSys.toggleMute();
-                        return;
-                    }
-                    if (my > by2 && my < by2 + btnH) {
-                        if (typeof AudioSys !== 'undefined') {
-                            AudioSys.changeTrack((AudioSys.currentTrackIdx + 1) % 2);
-                        }
-                        return;
-                    }
-                    if (my > by3 && my < by3 + btnH) {
-                        this.state = 'PLAYING';
-                        return;
-                    }
-                    if (my > by4 && my < by4 + btnH) {
-                        this.state = 'MENU';
-                        return;
-                    }
-                }
-                return;
+    if (mx > CONFIG.BOARD.w / 2 - btnW / 2 && mx < CONFIG.BOARD.w / 2 + btnW / 2) {
+        if (my > by1 && my < by1 + btnH) {
+            if (typeof AudioSys !== 'undefined') {
+                AudioSys.toggleMute();
+                this.saveGameData(); // 💾 Automatically updates localStorage state
             }
+            return;
+        }
+        if (my > by2 && my < by2 + btnH) {
+            if (typeof AudioSys !== 'undefined') {
+                AudioSys.changeTrack((AudioSys.currentTrackIdx + 1) % 2);
+                this.saveGameData(); // 💾 Automatically updates localStorage state
+            }
+            return;
+        }
+    if (my > by3 && my < by3 + btnH) {
+    this.state = 'PLAYING';
+    
+    // 🧠 FIX: Wake up the Chief AI if it was their turn when the menu opened!
+    if (this.player === 'chief') {
+        setTimeout(() => this.doChiefTurn(), 500); 
+    }
+    return;
+}
+        if (my > by4 && my < by4 + btnH) {
+            this.state = 'MENU';
+            return;
+        }
+        // 🆕 Check if player clicked the new "RESET ALL" button area
+        if (my > by5 && my < by5 + btnH) {
+            this.resetAllData();
+            return;
+        }
+    }
+    return;
+}
 
             const isPortrait = CONFIG === CONFIG_PORTRAIT;
            
@@ -399,14 +472,18 @@ class Game {
         };
     }
     
-    scorePoints(pts) {
-        if (pts === 0) return;
-        let curr = this.player === 'chief' ? this.chiefScore : this.thiefScore;
-        for (let i = 0; i < pts; i++) {
-            this.beads.push(new Bead(this.player, curr + i));
-        }
-        if (this.player === 'chief') this.chiefScore += pts; else this.thiefScore += pts;
+ scorePoints(pts) {
+    if (pts === 0) return;
+    let curr = this.player === 'chief' ? this.chiefScore : this.thiefScore;
+    for (let i = 0; i < pts; i++) {
+        this.beads.push(new Bead(this.player, curr + i));
     }
+    if (this.player === 'chief') this.chiefScore += pts;
+    else this.thiefScore += pts;
+
+    // 👇 ADD THIS LINE HERE TO AUTO-SAVE ON BOTH PC AND PHONE 👇
+    this.saveGameData();
+}
 
     changePlayer() {
         this.throwsThisRound = 0;
@@ -416,6 +493,7 @@ class Game {
             this.state = 'GAMEOVER'; 
             if (this.chiefScore > this.thiefScore) this.chiefWins++;
             else if (this.thiefScore > this.chiefScore) this.thiefWins++;
+            this.saveGameData();
             return;
         }
         this.player = next;
@@ -516,7 +594,6 @@ class Game {
 
         window.LAST_CHIEF_SCORE = this.chiefScore;
         window.LAST_THIEF_SCORE = this.thiefScore;
-        
         this.chiefScore = 0;
         this.thiefScore = 0;
         this.daggers = [];
@@ -581,46 +658,43 @@ class Game {
             return;
         }
 
-        if (this.state === 'SETTINGS') {
-            this.ctx.fillStyle = 'rgba(0,0,0,0.85)';
-            this.ctx.fillRect(0,0,CONFIG.BOARD.w, CONFIG.BOARD.h);
-            
-            this.ctx.fillStyle = '#d4af37';
-            this.ctx.font = '80px "ArcadeClassic", monospace';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText("SETTINGS", CONFIG.BOARD.w/2, CONFIG.BOARD.h/2 - 250);
+       if (this.state === 'SETTINGS') {
+    this.ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    this.ctx.fillRect(0,0,CONFIG.BOARD.w, CONFIG.BOARD.h);
+    this.ctx.fillStyle = '#d4af37';
+    this.ctx.font = '80px "ArcadeClassic", monospace';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillText("SETTINGS", CONFIG.BOARD.w/2, CONFIG.BOARD.h/2 - 280);
 
-            const btnW = 400;
-            const btnH = 80;
-            const gap = 40;
-            const startY = CONFIG.BOARD.h/2 - 150;
+    const btnW = 400;
+    const btnH = 70;      
+    const gap = 25;       
+    const startY = CONFIG.BOARD.h/2 - 210; 
 
-            let muteTxt = "SOUND: ON";
-            if (typeof AudioSys !== 'undefined') {
-                if (AudioSys.soundState === 1) muteTxt = "MUSIC: OFF";
-                else if (AudioSys.soundState === 2) muteTxt = "SOUND: OFF";
-            }
-            let trackTxt = "TRACK: " + (typeof AudioSys !== 'undefined' ? (AudioSys.currentTrackIdx + 1) : 1);
+    let muteTxt = "SOUND: ON";
+    if (typeof AudioSys !== 'undefined') {
+        if (AudioSys.soundState === 1) muteTxt = "MUSIC: OFF";
+        else if (AudioSys.soundState === 2) muteTxt = "SOUND: OFF";
+    }
+    let trackTxt = "TRACK: " + (typeof AudioSys !== 'undefined' ? (AudioSys.currentTrackIdx + 1) : 1);
+    
+    const labels = [muteTxt, trackTxt, "RESUME", "MAIN MENU", "RESET ALL"];
 
-            const labels = [muteTxt, trackTxt, "RESUME", "MAIN MENU"];
-            
-            for(let i=0; i<4; i++) {
-                const by = startY + i * (btnH + gap);
-                this.ctx.fillStyle = '#222';
-                this.ctx.fillRect(CONFIG.BOARD.w/2 - btnW/2, by, btnW, btnH);
-                this.ctx.lineWidth = 4;
-                this.ctx.strokeStyle = '#aaa';
-                this.ctx.strokeRect(CONFIG.BOARD.w/2 - btnW/2, by, btnW, btnH);
-                
-                this.ctx.fillStyle = '#aaa';
-                this.ctx.font = '40px "ArcadeClassic", monospace';
-                this.ctx.fillText(labels[i], CONFIG.BOARD.w/2, by + btnH/2 + 5);
-            }
-
-            requestAnimationFrame(() => this.loop());
-            return;
-        }
+    for(let i=0; i<5; i++) { 
+        const by = startY + i * (btnH + gap);
+        this.ctx.fillStyle = '#222';
+        this.ctx.fillRect(CONFIG.BOARD.w/2 - btnW/2, by, btnW, btnH);
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeStyle = '#aaa';
+        this.ctx.strokeRect(CONFIG.BOARD.w/2 - btnW/2, by, btnW, btnH);
+        this.ctx.fillStyle = '#aaa';
+        this.ctx.font = '40px "ArcadeClassic", monospace';
+        this.ctx.fillText(labels[i], CONFIG.BOARD.w/2, by + btnH/2 + 5);
+    }
+    requestAnimationFrame(() => this.loop());
+    return;
+}
         
         this.ctx.shadowBlur = 0;
         this.ctx.shadowOffsetX = 0;

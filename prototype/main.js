@@ -65,6 +65,7 @@ class Game {
         this.spawnX = this.getSpawnX();
         
         this.anim = null;
+        this.activeSlider = null; // Track which slider is actively grabbed
         
         window.addEventListener('resize', this.handleResize.bind(this));
         this.handleResize(); // Initial call
@@ -93,33 +94,32 @@ class Game {
     bindEvents() {
         const handleMove = (clientX, clientY, isDragging) => {
             if (this.state !== 'PLAYING' || this.player !== 'thief') return;
+            if (!isDragging) {
+                this.activeSlider = null;
+                return;
+            }
+            if (!this.activeSlider) return;
+
             const r = this.canvas.getBoundingClientRect();
             const scaleX = this.canvas.width / r.width;
             const scaleY = this.canvas.height / r.height;
             const mx = (clientX - r.left) * scaleX;
             const my = (clientY - r.top) * scaleY;
             
-            if (isDragging) {
-                // Drag Force
-                if (Math.abs(my - CONFIG.FORCE.y) < 150 && mx > CONFIG.FORCE.x - 100 && mx < CONFIG.FORCE.x + CONFIG.FORCE.width + 100) {
-                    const ratio = Math.max(0, Math.min(1, (mx - CONFIG.FORCE.x) / CONFIG.FORCE.width));
-                    this.fPeg = Math.round(ratio * (CONFIG.FORCE.pegs - 1));
-                }
-                // Drag Angle
+            if (this.activeSlider === 'force') {
+                const ratio = Math.max(0, Math.min(1, (mx - CONFIG.FORCE.x) / CONFIG.FORCE.width));
+                this.fPeg = Math.round(ratio * (CONFIG.FORCE.pegs - 1));
+            } else if (this.activeSlider === 'angle') {
                 if (CONFIG.ANGLE.isLinear) {
-                    if (Math.abs(my - CONFIG.ANGLE.y) < 150 && mx > CONFIG.ANGLE.x - 100 && mx < CONFIG.ANGLE.x + CONFIG.ANGLE.width + 100) {
-                        const ratio = Math.max(0, Math.min(1, (mx - CONFIG.ANGLE.x) / CONFIG.ANGLE.width));
-                        this.aPeg = Math.round(ratio * (CONFIG.ANGLE.pegs - 1));
-                    }
+                    const ratio = Math.max(0, Math.min(1, (mx - CONFIG.ANGLE.x) / CONFIG.ANGLE.width));
+                    this.aPeg = Math.round(ratio * (CONFIG.ANGLE.pegs - 1));
                 } else {
                     const dx = mx - CONFIG.ANGLE.cx; const dy = my - CONFIG.ANGLE.cy;
-                    if (Math.sqrt(dx*dx + dy*dy) < Math.max(CONFIG.ANGLE.radiusX, CONFIG.ANGLE.radiusY) + 150) {
-                        let angle = Math.atan2(dy, dx);
-                        if (angle < 0) angle += Math.PI * 2;
-                        if (angle >= Math.PI && angle <= Math.PI * 2) {
-                            let angObj = angle - Math.PI;
-                            this.aPeg = Math.round((angObj / Math.PI) * (CONFIG.ANGLE.pegs - 1));
-                        }
+                    let angle = Math.atan2(dy, dx);
+                    if (angle < 0) angle += Math.PI * 2;
+                    if (angle >= Math.PI && angle <= Math.PI * 2) {
+                        let angObj = angle - Math.PI;
+                        this.aPeg = Math.round((angObj / Math.PI) * (CONFIG.ANGLE.pegs - 1));
                     }
                 }
             }
@@ -128,7 +128,7 @@ class Game {
         const handleDown = (clientX, clientY) => {
             if (typeof AudioSys !== 'undefined') {
                 AudioSys.init(); // Init audio on first interaction
-                AudioSys.startMusic('tavern.mp3');
+                AudioSys.startMusic();
             }
 
             const r = this.canvas.getBoundingClientRect();
@@ -173,13 +173,49 @@ class Game {
                 return;
             }
 
+            if (this.state === 'SETTINGS') {
+                const btnW = 400;
+                const btnH = 80;
+                const gap = 40;
+                const startY = CONFIG.BOARD.h/2 - 150;
+                
+                const by1 = startY + 0 * (btnH + gap);
+                const by2 = startY + 1 * (btnH + gap);
+                const by3 = startY + 2 * (btnH + gap);
+                const by4 = startY + 3 * (btnH + gap);
+
+                if (mx > CONFIG.BOARD.w/2 - btnW/2 && mx < CONFIG.BOARD.w/2 + btnW/2) {
+                    if (my > by1 && my < by1 + btnH) {
+                        if (typeof AudioSys !== 'undefined') AudioSys.toggleMute();
+                        return;
+                    }
+                    if (my > by2 && my < by2 + btnH) {
+                        if (typeof AudioSys !== 'undefined') {
+                            AudioSys.changeTrack((AudioSys.currentTrackIdx + 1) % 2);
+                        }
+                        return;
+                    }
+                    if (my > by3 && my < by3 + btnH) {
+                        this.state = 'PLAYING';
+                        return;
+                    }
+                    if (my > by4 && my < by4 + btnH) {
+                        this.state = 'MENU';
+                        return;
+                    }
+                }
+                return;
+            }
+
             const isPortrait = CONFIG === CONFIG_PORTRAIT;
-            const btn2 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50} : {x: CONFIG.BOARD.w - 400, y: 20, w: 150, h: 50}; // Menu
-            const btn1 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 80, w: 200, h: 50} : {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50}; // Mute
-            const btn3 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 140, w: 200, h: 50} : {x: CONFIG.BOARD.w - 620, y: 20, w: 200, h: 50}; // Mode
+           
+            const btn3 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 140, w: 200, h: 50} : {x: CONFIG.BOARD.w - 570, y: 20, w: 150, h: 50}; // Mode
+           
+            const btn1 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 80, w: 200, h: 50} : {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50}; // Settings
+             const btn2 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50} : {x: CONFIG.BOARD.w - 400, y: 20, w: 150, h: 50}; // Menu
 
             if (mx > btn1.x && mx < btn1.x + btn1.w && my > btn1.y && my < btn1.y + btn1.h) {
-                if (typeof AudioSys !== 'undefined') AudioSys.toggleMute();
+                this.state = 'SETTINGS';
                 return;
             }
             if (mx > btn2.x && mx < btn2.x + btn2.w && my > btn2.y && my < btn2.y + btn2.h) {
@@ -195,17 +231,19 @@ class Game {
             if (this.state !== 'PLAYING' || this.player !== 'thief') return;
             
             // Click Force
-            if (Math.abs(my - CONFIG.FORCE.y) < 150 && mx > CONFIG.FORCE.x - 100 && mx < CONFIG.FORCE.x + CONFIG.FORCE.width + 100) {
+            if (Math.abs(my - CONFIG.FORCE.y) < 70 && mx > CONFIG.FORCE.x - 100 && mx < CONFIG.FORCE.x + CONFIG.FORCE.width + 100) {
                 const ratio = Math.max(0, Math.min(1, (mx - CONFIG.FORCE.x) / CONFIG.FORCE.width));
                 this.fPeg = Math.round(ratio * (CONFIG.FORCE.pegs - 1));
+                this.activeSlider = 'force';
                 return;
             }
             
             // Click Angle
             if (CONFIG.ANGLE.isLinear) {
-                if (Math.abs(my - CONFIG.ANGLE.y) < 150 && mx > CONFIG.ANGLE.x - 100 && mx < CONFIG.ANGLE.x + CONFIG.ANGLE.width + 100) {
+                if (Math.abs(my - CONFIG.ANGLE.y) < 70 && mx > CONFIG.ANGLE.x - 100 && mx < CONFIG.ANGLE.x + CONFIG.ANGLE.width + 100) {
                     const ratio = Math.max(0, Math.min(1, (mx - CONFIG.ANGLE.x) / CONFIG.ANGLE.width));
                     this.aPeg = Math.round(ratio * (CONFIG.ANGLE.pegs - 1));
+                    this.activeSlider = 'angle';
                     return;
                 }
             } else {
@@ -217,6 +255,7 @@ class Game {
                         let angObj = angle - Math.PI;
                         this.aPeg = Math.round((angObj / Math.PI) * (CONFIG.ANGLE.pegs - 1));
                     }
+                    this.activeSlider = 'angle';
                     return;
                 }
             }
@@ -236,6 +275,14 @@ class Game {
             e.preventDefault();
             if (e.touches.length > 0) handleDown(e.touches[0].clientX, e.touches[0].clientY);
         }, {passive: false});
+
+        const handleUp = () => {
+            this.activeSlider = null;
+        };
+        this.canvas.addEventListener('mouseup', handleUp);
+        this.canvas.addEventListener('mouseleave', handleUp);
+        this.canvas.addEventListener('touchend', handleUp);
+        this.canvas.addEventListener('touchcancel', handleUp);
     }
 
     throwDagger() {
@@ -516,6 +563,47 @@ class Game {
             requestAnimationFrame(() => this.loop());
             return;
         }
+
+        if (this.state === 'SETTINGS') {
+            this.ctx.fillStyle = 'rgba(0,0,0,0.85)';
+            this.ctx.fillRect(0,0,CONFIG.BOARD.w, CONFIG.BOARD.h);
+            
+            this.ctx.fillStyle = '#d4af37';
+            this.ctx.font = '80px "ArcadeClassic", monospace';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText("SETTINGS", CONFIG.BOARD.w/2, CONFIG.BOARD.h/2 - 250);
+
+            const btnW = 400;
+            const btnH = 80;
+            const gap = 40;
+            const startY = CONFIG.BOARD.h/2 - 150;
+
+            let muteTxt = "SOUND: ON";
+            if (typeof AudioSys !== 'undefined') {
+                if (AudioSys.soundState === 1) muteTxt = "MUSIC: OFF";
+                else if (AudioSys.soundState === 2) muteTxt = "SOUND: OFF";
+            }
+            let trackTxt = "TRACK: " + (typeof AudioSys !== 'undefined' ? (AudioSys.currentTrackIdx + 1) : 1);
+
+            const labels = [muteTxt, trackTxt, "RESUME", "MAIN MENU"];
+            
+            for(let i=0; i<4; i++) {
+                const by = startY + i * (btnH + gap);
+                this.ctx.fillStyle = '#222';
+                this.ctx.fillRect(CONFIG.BOARD.w/2 - btnW/2, by, btnW, btnH);
+                this.ctx.lineWidth = 4;
+                this.ctx.strokeStyle = '#aaa';
+                this.ctx.strokeRect(CONFIG.BOARD.w/2 - btnW/2, by, btnW, btnH);
+                
+                this.ctx.fillStyle = '#aaa';
+                this.ctx.font = '40px "ArcadeClassic", monospace';
+                this.ctx.fillText(labels[i], CONFIG.BOARD.w/2, by + btnH/2 + 5);
+            }
+
+            requestAnimationFrame(() => this.loop());
+            return;
+        }
         
         this.ctx.shadowBlur = 0;
         this.ctx.shadowOffsetX = 0;
@@ -639,17 +727,13 @@ class Game {
             }
         }
 
-        // Draw UI Buttons (Mute, Menu, Mode)
-        let muteTxt = "SOUND: ON";
-        if (typeof AudioSys !== 'undefined') {
-            if (AudioSys.soundState === 1) muteTxt = "MUSIC: OFF";
-            else if (AudioSys.soundState === 2) muteTxt = "SOUND: OFF";
-        }
+        // Draw UI Buttons (Settings, Menu, Mode)
+        let settingsTxt = "SETTINGS";
         let modeTxt = "MODE: " + window.GRAPHICS_MODE.toUpperCase();
 
         const isPortrait = CONFIG === CONFIG_PORTRAIT;
         const btn2 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50} : {x: CONFIG.BOARD.w - 400, y: 20, w: 150, h: 50}; // Menu
-        const btn1 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 80, w: 200, h: 50} : {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50}; // Mute
+        const btn1 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 80, w: 200, h: 50} : {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50}; // Settings
         const btn3 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 140, w: 200, h: 50} : {x: CONFIG.BOARD.w - 620, y: 20, w: 200, h: 50}; // Mode
 
         this.ctx.fillStyle = '#222';
@@ -667,7 +751,7 @@ class Game {
         this.ctx.font = '30px "ArcadeClassic", monospace';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(muteTxt, btn1.x + btn1.w/2, btn1.y + btn1.h/2);
+        this.ctx.fillText(settingsTxt, btn1.x + btn1.w/2, btn1.y + btn1.h/2);
         this.ctx.fillText("MENU", btn2.x + btn2.w/2, btn2.y + btn2.h/2);
         this.ctx.fillText(modeTxt, btn3.x + btn3.w/2, btn3.y + btn3.h/2);
 

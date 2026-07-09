@@ -2,6 +2,8 @@ const AudioSys = {
     ctx: null,
     ctx: null,
     soundState: 0, // 0 = All On, 1 = Music Off, 2 = All Off
+    currentTrackIdx: 0,
+    tracks: ['The Tavern of the Lost .mp3', 'tavern.mp3'],
 
     init() {
         if (!this.ctx) {
@@ -91,17 +93,32 @@ const AudioSys = {
         }
         if (this.bgmLooper) {
             this.bgmLooper.setMuted(this.soundState > 0);
+        } else if (this.soundState < 2) {
+            this.startMusic();
         }
         return this.soundState;
     },
 
+    changeTrack(idx) {
+        this.currentTrackIdx = idx % this.tracks.length;
+        if (this.bgmLooper) {
+            this.bgmLooper.pause();
+            this.bgmLooper = null;
+        }
+        if (this.soundState < 2) {
+            this.startMusic();
+        }
+    },
+
     startMusic(src) {
+        if (!src) src = this.tracks[this.currentTrackIdx];
         if (this.bgmLooper) {
             if (!this.bgmLooper.isPlaying) this.bgmLooper.play();
             return;
         }
         this.bgmLooper = new CrossfadeLooper(src, 3.0);
         this.bgmLooper.volume = 0.3; // Background music volume
+        this.bgmLooper.setMuted(this.soundState > 0);
         this.bgmLooper.play();
     }
 };

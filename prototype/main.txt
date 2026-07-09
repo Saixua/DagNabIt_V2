@@ -208,6 +208,7 @@ class Game {
             }
 
             const isPortrait = CONFIG === CONFIG_PORTRAIT;
+            const btn3 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50} : {x: CONFIG.BOARD.w - 400, y: 20, w: 150, h: 50}; // Mode
             const btn2 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50} : {x: CONFIG.BOARD.w - 400, y: 20, w: 150, h: 50}; // Menu
             const btn1 = isPortrait ? {x: CONFIG.BOARD.w - 230, y: 80, w: 200, h: 50} : {x: CONFIG.BOARD.w - 230, y: 20, w: 200, h: 50}; // Settings
 

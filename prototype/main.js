@@ -121,6 +121,9 @@ class Game {
 
         // 5. Run responsive layout system checks
         window.addEventListener('resize', this.handleResize.bind(this));
+        // 🆕 Add this tracker for your manual point checks:
+        this.debugClick = { x: null, y: null, points: 0, rHit: 0 };
+
         this.handleResize(); 
         this.bindEvents();
 
@@ -321,6 +324,9 @@ class Game {
         };
 
         const handleDown = (clientX, clientY) => {
+       
+            
+
             if (typeof AudioSys !== 'undefined') {
                 AudioSys.init(); // Init audio on first interaction
                 AudioSys.startMusic();

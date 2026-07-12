@@ -48,48 +48,82 @@ class Bead {
 }
 
 class Game {
-    constructor(canvas) {
+   constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.renderer = new Renderer(canvas, this.ctx);
-        
-        // Check if the player has already played a round
+
+        // 1. Core data structures initialized immediately to prevent undefined/NaN errors
+         this.boardRatios = {
+            classic: { 
+                bullseye: 0.14,                     // Central yellow polygon boundary
+                rings: [0.93, 0.74, 0.54, 0.34]     // Perfect spiderweb overlays
+            },
+            pixel: { 
+                bullseye: 0.16,                     // Center target circle hole
+                rings: [0.96, 0.76, 0.55, 0.35]     // Perfect wood target overlays
+            }
+        };
+        this.activeHitboxes = { bullseye: 37, rings: [150, 120, 90, 60] };
+        this.lastRHit = 0;
+        this.debug = false;
+        window.game = this; 
+
+        // 2. Initial game configurations and flags
         if (window.HAS_PLAYED_BEFORE) {
-            this.state = 'PLAYING'; // Skip the menu
-            this.difficulty = window.SELECTED_DIFFICULTY; // Keep the chosen difficulty
+            this.state = 'PLAYING';
+            this.difficulty = window.SELECTED_DIFFICULTY;
         } else {
-            this.state = 'MENU'; // Show menu only the very first time
+            this.state = 'MENU';
             this.difficulty = 'medium';
         }
 
-        this.player = 'thief'; 
+        this.player = 'thief';
         this.turn = 1;
         this.throwsThisRound = 0;
-        
         this.daggers = [];
         this.beads = [];
-        
-        this.chiefScore = 0; 
+        this.chiefScore = 0;
         this.thiefScore = 0;
         this.chiefWins = 0;
         this.thiefWins = 0;
-
-        
         this.fPeg = 14;
         this.aPeg = 14;
-        this.spawnX = this.getSpawnX();
-
-
-        
+        this.spawnX = 0; 
         this.anim = null;
-        this.activeSlider = null; // Track which slider is actively grabbed
-        
-        this.loadSavedData(); 
+        this.activeSlider = null;
 
+        // 🆕 NEW: Initialize live calibration sliders
+        this.calCenterYOffset = -45;   // Base center point adjustment
+        this.calBaseMultiplier = 0.25; // Base circle size scaling factor
+
+        // 3. Local data syncing
+        this.loadSavedData();
+
+        // 4. Expanded Hotkey listeners to calibrate rings in real-time
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'h') {
+                this.debug = !this.debug;
+                console.log(`Hitbox Debug Mode is now: ${this.debug ? 'ON' : 'OFF'}`);
+            }
+            
+            // Arrow keys adjust calibration only when the debug overlay is active
+            if (this.debug) {
+                // ⬆️ Up / ⬇️ Down arrows move the center point vertically
+                if (e.key === 'ArrowUp') { this.calCenterYOffset -= 1; e.preventDefault(); }
+                if (e.key === 'ArrowDown') { this.calCenterYOffset += 1; e.preventDefault(); }
+                
+                // ➡️ Right / ⬅️ Left arrows grow and shrink the overall ring size
+                if (e.key === 'ArrowRight') { this.calBaseMultiplier += 0.002; e.preventDefault(); }
+                if (e.key === 'ArrowLeft') { this.calBaseMultiplier -= 0.002; e.preventDefault(); }
+            }
+        });
+
+        // 5. Run responsive layout system checks
         window.addEventListener('resize', this.handleResize.bind(this));
-        this.handleResize(); // Initial call
-        
+        this.handleResize(); 
         this.bindEvents();
+
     }
     
     handleResize() {
@@ -101,10 +135,100 @@ class Game {
         this.canvas.width = CONFIG.BOARD.w;
         this.canvas.height = CONFIG.BOARD.h;
         this.renderer.cacheBoard();
+        
         if (this.state === 'PLAYING') {
             this.spawnX = this.getSpawnX();
         }
+        
+      
+          // 🎯 1. CALL THE NEW METHOD AT THE BOTTOM OF RESIZE:
+        const activeStyle = window.GRAPHICS_MODE === 'pixel' ? 'pixel' : 'classic';
+        this.updateActiveHitboxes(activeStyle);
     }
+    
+    
+    //Testing method for determining hitboxes visually.
+     drawHitboxDiagnostic(centerX, centerY) {
+        const ctx = this.ctx;
+        ctx.save();
+        
+        // Reset canvas context states to ensure custom drawings render
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.globalAlpha = 1.0;
+        ctx.setLineDash([]); // Prevent dashed lines if something else used them
+
+        // 1. 🎯 DRAW VISUAL RING BOUNDARIES DIRECTLY ON THE BOARD TARGET
+        ctx.lineWidth = 4; // Make lines thick enough to see easily
+        
+        // Draw the central Bullseye boundary (Bright Red Circle)
+        ctx.strokeStyle = "#ff0000"; 
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, this.activeHitboxes.bullseye, 0, 2 * Math.PI);
+        ctx.stroke();
+        
+        // Draw Outer Scoring Rings boundaries (Neon Green Circles)
+        ctx.strokeStyle = "#00ff00"; 
+        this.activeHitboxes.rings.forEach((radius) => {
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+        });
+
+        // 2. DRAW THE DIAGNOSTIC STATS WINDOW IN THE CORNER
+        ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+        ctx.fillRect(10, 10, 340, 130);
+        
+        ctx.fillStyle = "#00ff00";
+        ctx.font = "bold 13px monospace";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText(`=== HITBOX TARGET CALIBRATOR ===`, 20, 20);
+        
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(`Target Center: X:${centerX.toFixed(0)}, Y:${centerY.toFixed(0)}`, 20, 45);
+        ctx.fillText(`[Copy Me] Center Y Offset: ${this.calCenterYOffset}px`, 20, 65);
+        ctx.fillText(`[Copy Me] Size Multiplier: ${this.calBaseMultiplier.toFixed(3)}`, 20, 85);
+        ctx.fillText(`Last Shot Distance: ${this.lastRHit.toFixed(2)}px`, 20, 105);
+        
+        ctx.restore();
+    }
+
+     // 🆕 2. PASTE THE BRAND NEW METHOD HERE:
+    updateActiveHitboxes(activeStyle) {
+        // 🎯 SAFEGUARD: If the game is booting up and this object doesn't exist yet, build it instantly
+        if (!this.boardRatios) {
+            this.boardRatios = {
+            classic: { 
+                bullseye: 0.15,                     // Central yellow polygon
+                rings: [0.98, 0.77, 0.56, 0.35]     // Perfect spiderweb tracing
+            },
+            pixel: { 
+                bullseye: 0.19,                     // Inner bullseye hole
+                rings: [0.96, 0.76, 0.55, 0.35]     // Perfect wood target tracing
+            }
+        };
+        }
+        if (!this.activeHitboxes) {
+            this.activeHitboxes = { bullseye: 37, rings: [] };
+        }
+
+        const isPortrait = CONFIG.BOARD.h > CONFIG.BOARD.w;
+        
+        // 🎯 PERMANENT LOCKED CALIBRATION NUMBERS:
+        this.calBaseMultiplier = isPortrait ? 0.446 : 0.314;
+        this.calCenterYOffset = isPortrait ? -175 : -95;
+
+        // Base radius scaled to your exact layout proportions
+        const dynamicBaseRadius = Math.min(CONFIG.BOARD.w, CONFIG.BOARD.h) * this.calBaseMultiplier; 
+        
+        const currentRatios = this.boardRatios[activeStyle] || this.boardRatios['pixel'];
+        this.activeHitboxes.bullseye = dynamicBaseRadius * currentRatios.bullseye;
+        this.activeHitboxes.rings = currentRatios.rings.map(p => dynamicBaseRadius * p);
+    }
+
+    //Visual testing ends Ends here
     
     getSpawnX() {
         return CONFIG.FORCE.spawnX[0] + Math.random() * (CONFIG.FORCE.spawnX[1] - CONFIG.FORCE.spawnX[0]);
@@ -245,16 +369,16 @@ class Game {
             }
 
            if (this.state === 'SETTINGS') {
-    const btnW = 400;
-    const btnH = 70;      // Shrunk slightly from 80 to fit 5 buttons safely
-    const gap = 25;       // Tightened from 40 for optimal phone/PC vertical spacing
-    const startY = CONFIG.BOARD.h / 2 - 210; // Shifted up so the 5th button doesn't clip off-screen
-    
-    const by1 = startY + 0 * (btnH + gap);
-    const by2 = startY + 1 * (btnH + gap);
-    const by3 = startY + 2 * (btnH + gap);
-    const by4 = startY + 3 * (btnH + gap);
-    const by5 = startY + 4 * (btnH + gap); // 🆕 New 5th button position calculation
+            const btnW = 400;
+            const btnH = 70;      // Shrunk slightly from 80 to fit 5 buttons safely
+            const gap = 25;       // Tightened from 40 for optimal phone/PC vertical spacing
+            const startY = CONFIG.BOARD.h / 2 - 210; // Shifted up so the 5th button doesn't clip off-screen
+            
+            const by1 = startY + 0 * (btnH + gap);
+            const by2 = startY + 1 * (btnH + gap);
+            const by3 = startY + 2 * (btnH + gap);
+            const by4 = startY + 3 * (btnH + gap);
+            const by5 = startY + 4 * (btnH + gap); // 🆕 New 5th button position calculation
 
     if (mx > CONFIG.BOARD.w / 2 - btnW / 2 && mx < CONFIG.BOARD.w / 2 + btnW / 2) {
         if (my > by1 && my < by1 + btnH) {
@@ -557,39 +681,57 @@ class Game {
         this.throwDagger();
     }
 
-    simulateThrow(fPeg, aPeg) {
-        const aRad = -Math.PI + (aPeg / (CONFIG.ANGLE.pegs - 1)) * Math.PI;
-        const fRatio = fPeg / (CONFIG.FORCE.pegs - 1);
-        const dist = fRatio * CONFIG.FORCE.maxDist;
-        
-        let lx = this.spawnX + Math.cos(aRad) * dist;
-        let ly = CONFIG.FORCE.baseline + Math.sin(aRad) * dist;
-        const bf = CONFIG.BOARD_FACE;
-        const scaleX = bf.scaleX || 1.0;
-        const scaleY = bf.scaleY || 1.0;
-        let dx = (lx - bf.cx) / scaleX;
-        let dy = (ly - bf.cy) / scaleY;
-        let rHit = Math.hypot(dx, dy);
-        
-        let theta = Math.atan2(dy, dx);
-        let a = theta + Math.PI/2;
-        let localA = a % (Math.PI / 3);
-        if (localA < 0) localA += Math.PI / 3;
-        let maxR = (385 * Math.cos(Math.PI/6) / Math.cos(localA - Math.PI/6)) - 10;
-        rHit = Math.min(rHit, maxR);
-        
-        if (rHit <= 38) return 100;
-        else if (rHit <= 82) return 50;
-        else if (rHit <= 126) return 25;
-        else if (rHit <= 170) return 10;
-        else if (rHit <= 214) return 5;
-        else if (rHit <= 258) return 4;
-        else if (rHit <= 302) return 3;
-        else if (rHit <= 346) return 2;
-        else if (rHit <= 370) return 1;
-        return 0;
-    }
+simulateThrow(fPeg, aPeg) {
+    const aRad = -Math.PI + (aPeg / (CONFIG.ANGLE.pegs - 1)) * Math.PI;
+    const fRatio = fPeg / (CONFIG.FORCE.pegs - 1);
+    const dist = fRatio * CONFIG.FORCE.maxDist;
+    
+    let lx = this.spawnX + Math.cos(aRad) * dist;
+    let ly = CONFIG.FORCE.baseline + Math.sin(aRad) * dist;
 
+    // Grab configuration positioning parameters
+
+    const isPortrait = CONFIG.BOARD.h > CONFIG.BOARD.w;
+    const visualCenterX = CONFIG.BOARD.w / 2;
+    // Centers tracking points to match the loop offsets precisely
+    const visualCenterY = isPortrait ? (CONFIG.BOARD.h / 2) - 175 : (CONFIG.BOARD.h / 2) - 95;
+
+    const bf = CONFIG.BOARD_FACE;
+    const scaleX = bf.scaleX || 1.0;
+    const scaleY = bf.scaleY || 1.0;
+    
+    let dx = (lx - visualCenterX) / scaleX;
+    let dy = (ly - visualCenterY) / scaleY;
+    let rHit = Math.hypot(dx, dy);
+    
+    // Hexagonal boundary calculation
+    let theta = Math.atan2(dy, dx);
+    let a = theta + Math.PI/2;
+    let localA = a % (Math.PI / 3);
+    if (localA < 0) localA += Math.PI / 3;
+    
+    const baseMultiplier = isPortrait ? 0.446 : 0.314;
+    const dynamicBaseRadius = Math.min(CONFIG.BOARD.w, CONFIG.BOARD.h) * baseMultiplier;
+    const dynamicMaxRadius = dynamicBaseRadius * 1.02; 
+    let maxR = (dynamicMaxRadius * Math.cos(Math.PI/6) / Math.cos(localA - Math.PI/6)) - 10;
+    rHit = Math.min(rHit, maxR);
+
+    // Update diagnostic parameter
+    this.lastRHit = rHit;
+
+  // Read active live screen boundaries
+    const b = this.activeHitboxes.bullseye;
+    const r = this.activeHitboxes.rings;
+
+    // Process hits from inside out seamlessly
+    if (rHit <= b) return 100;         // Bullseye
+    else if (rHit <= r[0]) return 50;  // Ring 1 (Innermost red/white)
+    else if (rHit <= r[1]) return 25;  // Ring 2
+    else if (rHit <= r[2]) return 10;  // Ring 3
+    else if (rHit <= r[3]) return 5;   // Ring 4 (Outermost)
+    
+    return 0; // Missed shot completely
+}
     resetGame() {
 
         window.LAST_CHIEF_SCORE = this.chiefScore;
@@ -847,7 +989,23 @@ class Game {
         this.ctx.fillText(modeTxt, btn3.x + btn3.w/2, btn3.y + btn3.h/2);
 
         requestAnimationFrame(() => this.loop());
+
+        // 🎯 PLACE THIS AT THE VERY BOTTOM OF YOUR loop() METHOD:
+ 
+    if (this.state === 'PLAYING' && this.debug === true) {
+        // Automatically force the hitboxes to recalculate using your live slider changes
+        const activeStyle = window.GRAPHICS_MODE === 'pixel' ? 'pixel' : 'classic';
+        this.updateActiveHitboxes(activeStyle);
+
+        const trueBoardX = CONFIG.BOARD.w / 2;
+        
+        // 🎯 LINK TO LIVE SLIDERS: Shifts center Y up and down in real-time
+        const trueBoardY = (CONFIG.BOARD.h / 2) + this.calCenterYOffset; 
+        
+        this.drawHitboxDiagnostic(trueBoardX, trueBoardY);
     }
+}
+
 
     drawTally(x, y, count, color) {
         this.ctx.save();
